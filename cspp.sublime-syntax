@@ -1,0 +1,116 @@
+%YAML 1.2
+---
+name: CSound++
+file_extensions: [csp,cspp]
+scope: source.cspp
+
+variables:
+  ident: \b[A-Za-z][A-Za-z_0-9]*\b
+  number: '[+-]?\d*\.?\d*'
+
+contexts:
+  common:
+    - match: \b(import|parallel)\b
+      scope: keyword.control.cspp
+
+    - match: '{{number}}'
+      scope: constant.numeric.float.cspp
+
+    - match: /\*
+      push: block_comment
+
+    - match: //
+      push: line_comment
+
+    - match: '"'
+      push: string_literal
+
+  main:
+    - include: common
+
+    - match: \b(?=instr)\b
+      set: [block, assignment, instrument]
+
+    - match: '{{ident}}(?=\s*\()'
+      scope: entity.name.function.cspp
+      set: [block, assignment, params]
+
+    - match: '{{ident}}'
+      scope: entity.name.function.cspp
+      set: [block, assignment]
+
+  block_comment:
+    - meta_scope: comment.block.cspp
+    - match: \*/
+      pop: true
+
+  line_comment:
+    - meta_scope: comment.line.cspp
+    - match: \n
+      pop: true
+
+  params:
+    - meta_scope: meta.function.parameters.cspp
+    - include: common
+
+    - match: '{{ident}}(?=\s*\()'
+      scope: variable.function.cspp
+      push: params
+    - match: '{{ident}}'
+      scope: variable.parameter.cspp
+    - match: \)
+      pop: true
+
+  assignment:
+    - match: '\s*=\s*'
+      scope: keyword.control.cspp
+      pop: true
+
+    - match: .
+      scope: invalid.illegal.expected-assignment
+
+  block:
+    - meta_scope: meta.block.cspp
+    - include: common
+
+    - match: '{'
+      set: nested_block
+
+    - match: '{{ident}}(?=\s*\()'
+      scope: variable.function.cspp
+      set: params
+
+    - match: '{{ident}}|{{number}}'
+      pop: true
+
+    - match: '}'
+      scope: invalid.illegal.stray-bracket-end
+
+  nested_block:
+    - meta_scope: meta.block.cspp
+    - include: common
+
+    - match: '{'
+      push: nested_block
+
+    - match: '{{ident}}(?=\s*\()'
+      scope: variable.function.cspp
+
+    - match: '}'
+      pop: true
+
+  string_literal:
+    - meta_scope: string.quoted.double.cspp
+    - match: \\.
+      scope: constant.character.escape.cspp
+    - match: '"'
+      pop: true
+
+  instrument:
+    - meta_scope: meta.toc-list.cspp
+    - match: \binstr\b
+      scope: keyword.control.cspp
+    - match: \(
+      scope: meta.function.parameters.cspp
+    - include: params
+
